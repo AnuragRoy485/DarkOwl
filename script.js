@@ -17,7 +17,7 @@ document.getElementById("track-btn").addEventListener("click", () => {
             '<p class="error">Error fetching Bitcoin data.</p>';
         });
     } else if (cryptoType === "eth") {
-      const apiKey = "YOUR_ETHERSCAN_API_KEY"; // Replace with your Etherscan API key
+      const apiKey = "AENRRI4JUYH3U2GK1Z4IVVK7JSR43M5G9A"; // Replace with your Etherscan API key
       fetch(
         `https://api.etherscan.io/api?module=account&action=txlist&address=${address}&apikey=${apiKey}`
       )
