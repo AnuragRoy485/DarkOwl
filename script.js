@@ -1,160 +1,135 @@
-document.getElementById("track-btn").addEventListener("click", () => {
-  const cryptoType = document.getElementById("crypto-select").value;
-  const address = document.getElementById("address").value;
+document.getElementById('track-btn').addEventListener('click', () => {
+    const cryptoType = document.getElementById('crypto-select').value;
+    const address = document.getElementById('address').value;
 
-  if (address) {
-    if (cryptoType === "btc") {
-      fetch(`https://api.blockcypher.com/v1/btc/main/addrs/${address}/full`)
-        .then((response) => response.json())
-        .then((data) => {
-          displayResults("btc", data);
-          drawGraph(data);
-          drawSankeyDiagram(data);
-        })
-        .catch((error) => {
-          console.error("Error:", error);
-          document.getElementById("results").innerHTML =
-            '<p class="error">Error fetching Bitcoin data.</p>';
-        });
-    } else if (cryptoType === "eth") {
-      const apiKey = "AENRRI4JUYH3U2GK1Z4IVVK7JSR43M5G9A"; // Replace with your Etherscan API key
-      fetch(
-        `https://api.etherscan.io/api?module=account&action=txlist&address=${address}&apikey=${apiKey}`
-      )
-        .then((response) => response.json())
-        .then((data) => {
-          displayResults("eth", data);
-          drawGraph(data);
-          drawSankeyDiagram(data);
-        })
-        .catch((error) => {
-          console.error("Error:", error);
-          document.getElementById("results").innerHTML =
-            '<p class="error">Error fetching Ethereum data.</p>';
-        });
+    if (address) {
+        if (cryptoType === 'btc') {
+            fetch(`https://api.blockcypher.com/v1/btc/main/addrs/${address}/full`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok ' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Bitcoin data:', data); // Debugging line
+                    if (data && Array.isArray(data.txs)) {
+                        displayResults('btc', data);
+                        trackFunds('btc', data);
+                    } else {
+                        throw new Error('Unexpected data structure or no transactions found.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching Bitcoin data:', error);
+                    document.getElementById('results').innerHTML = '<p class="error">Error fetching Bitcoin data: ' + error.message + '</p>';
+                });
+        } else if (cryptoType === 'eth') {
+            const apiKey = 'AENRRI4JUYH3U2GK1Z4IVVK7JSR43M5G9A'; // Replace with your Etherscan API key
+            fetch(`https://api.etherscan.io/api?module=account&action=txlist&address=${address}&apikey=${apiKey}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok ' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Ethereum data:', data); // Debugging line
+                    if (data && data.result && Array.isArray(data.result)) {
+                        displayResults('eth', data);
+                        trackFunds('eth', data);
+                    } else {
+                        throw new Error('Unexpected data structure or no transactions found.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching Ethereum data:', error);
+                    document.getElementById('results').innerHTML = '<p class="error">Error fetching Ethereum data: ' + error.message + '</p>';
+                });
+        }
+    } else {
+        document.getElementById('results').innerHTML = '<p class="error">Please enter a wallet address.</p>';
     }
-  } else {
-    document.getElementById("results").innerHTML =
-      '<p class="error">Please enter a wallet address.</p>';
-  }
 });
 
 function displayResults(cryptoType, data) {
-  let resultsHtml = "<h2>Transaction Details</h2>";
-  if (cryptoType === "btc") {
-    if (data.txs && data.txs.length > 0) {
-      resultsHtml += '<div class="transactions">';
-      data.txs.forEach((tx) => {
-        resultsHtml += `<div class="transaction">
+    let resultsHtml = '<h2>Transaction Details</h2>';
+    if (cryptoType === 'btc') {
+        if (data.txs && data.txs.length > 0) {
+            resultsHtml += '<div class="transactions">';
+            data.txs.forEach(tx => {
+                resultsHtml += `<div class="transaction">
                     <h3>Transaction Hash: ${tx.hash}</h3>
                     <p><strong>Value:</strong> ${tx.total} satoshis</p>
                     <p><strong>Inputs:</strong> ${tx.inputs.length}</p>
                     <p><strong>Outputs:</strong> ${tx.outputs.length}</p>
-                    <h4>Outputs:</h4>
-                    <ul>`;
-
-        tx.outputs.forEach((output) => {
-          resultsHtml += `<li>
-                        <strong>Address:</strong> ${
-                          output.addresses ? output.addresses.join(", ") : "N/A"
-                        }<br>
-                        <strong>Value:</strong> ${output.value} satoshis
-                    </li>`;
-        });
-
-        resultsHtml += `</ul></div>`;
-      });
-      resultsHtml += "</div>";
-    } else {
-      resultsHtml += "<p>No transactions found for this address.</p>";
-    }
-  } else if (cryptoType === "eth") {
-    if (data.result && data.result.length > 0) {
-      resultsHtml += '<div class="transactions">';
-      data.result.forEach((tx) => {
-        resultsHtml += `<div class="transaction">
+                </div>`;
+            });
+            resultsHtml += '</div>';
+        } else {
+            resultsHtml += '<p>No transactions found for this address.</p>';
+        }
+    } else if (cryptoType === 'eth') {
+        if (data.result && data.result.length > 0) {
+            resultsHtml += '<div class="transactions">';
+            data.result.forEach(tx => {
+                resultsHtml += `<div class="transaction">
                     <h3>Transaction Hash: ${tx.hash}</h3>
                     <p><strong>Block Number:</strong> ${tx.blockNumber}</p>
                     <p><strong>Value:</strong> ${tx.value / 1e18} ETH</p>
                     <p><strong>From:</strong> ${tx.from}</p>
                     <p><strong>To:</strong> ${tx.to}</p>
                 </div>`;
-      });
-      resultsHtml += "</div>";
-    } else {
-      resultsHtml += "<p>No transactions found for this address.</p>";
-    }
-  }
-  document.getElementById("results").innerHTML = resultsHtml;
-}
-
-function drawGraph(data) {
-  const ctx = document.getElementById("transaction-chart").getContext("2d");
-  const chartData = {
-    labels: [],
-    datasets: [
-      {
-        label: "Transaction Values",
-        data: [],
-        backgroundColor: "#4e73df",
-        borderColor: "#4e73df",
-        borderWidth: 1
-      }
-    ]
-  };
-
-  if (data.txs) {
-    data.txs.forEach((tx) => {
-      chartData.labels.push(tx.hash);
-      chartData.datasets[0].data.push(tx.total);
-    });
-  } else if (data.result) {
-    data.result.forEach((tx) => {
-      chartData.labels.push(tx.hash);
-      chartData.datasets[0].data.push(tx.value / 1e18);
-    });
-  }
-
-  new Chart(ctx, {
-    type: "bar",
-    data: chartData,
-    options: {
-      scales: {
-        x: {
-          beginAtZero: true
+            });
+            resultsHtml += '</div>';
+        } else {
+            resultsHtml += '<p>No transactions found for this address.</p>';
         }
-      }
     }
-  });
+    document.getElementById('results').innerHTML = resultsHtml;
 }
 
-function drawSankeyDiagram(data) {
-  google.charts.load("current", { packages: ["sankey"] });
-  google.charts.setOnLoadCallback(() => {
-    const container = document.getElementById("sankey-diagram");
-    const chartData = new google.visualization.DataTable();
-    chartData.addColumn("string", "From");
-    chartData.addColumn("string", "To");
-    chartData.addColumn("number", "Value");
+function trackFunds(cryptoType, data) {
+    const addressMap = new Map();
+    const transactions = [];
 
-    if (data.txs) {
-      data.txs.forEach((tx) => {
-        tx.outputs.forEach((output) => {
-          output.addresses.forEach((address) => {
-            chartData.addRow([tx.hash, address, output.value]);
-          });
+    if (cryptoType === 'btc') {
+        data.txs.forEach(tx => {
+            if (tx.outputs) {
+                tx.outputs.forEach(output => {
+                    if (output.addresses) {
+                        output.addresses.forEach(address => {
+                            addressMap.set(address, (addressMap.get(address) || 0) + output.value);
+                        });
+                    }
+                });
+            }
         });
-      });
-    } else if (data.result) {
-      data.result.forEach((tx) => {
-        chartData.addRow([tx.from, tx.to, tx.value / 1e18]);
-      });
+    } else if (cryptoType === 'eth') {
+        data.result.forEach(tx => {
+            const value = tx.value / 1e18;
+            addressMap.set(tx.to, (addressMap.get(tx.to) || 0) + value);
+        });
     }
 
-    const chart = new google.visualization.Sankey(chartData);
-    chart.draw(container, {
-      width: "100%",
-      height: 400
-    });
-  });
+    const endReceivers = Array.from(addressMap.entries());
+    endReceivers.sort((a, b) => b[1] - a[1]); // Sort by received amount in descending order
+    displayEndReceivers(endReceivers);
+}
+
+function displayEndReceivers(endReceivers) {
+    let resultsHtml = '<h2>End Receivers</h2>';
+    if (endReceivers.length > 0) {
+        resultsHtml += '<div class="end-receivers">';
+        endReceivers.forEach(([address, amount]) => {
+            resultsHtml += `<div class="end-receiver">
+                <p><strong>Address:</strong> ${address}</p>
+                <p><strong>Total Received:</strong> ${amount} ${address.startsWith('0x') ? 'ETH' : 'satoshis'}</p>
+            </div>`;
+        });
+        resultsHtml += '</div>';
+    } else {
+        resultsHtml += '<p>No end receivers found.</p>';
+    }
+    document.getElementById('results').innerHTML += resultsHtml;
 }
